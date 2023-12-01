@@ -30,7 +30,7 @@ def entry_control(event):
 		return
 
 	for newMember in event.new_chat_members:
-		username = newMember.username
+		username = newMember.username.lower()
 		userId = newMember.id
 		wasBannedBefore = is_in_bannedlist(username)
 		if not is_admin(userId) and (wasBannedBefore or not is_in_whitelist(username)):
@@ -69,6 +69,7 @@ def command_controller(message):
 		if not users:
 			this_command_needs_users(chatId)
 		for userToAdd in users:
+			userToAdd = userToAdd.lower()
 			if is_in_whitelist(userToAdd):
 				bot.send_message(chatId, f'El usuario @{userToAdd} <b>ya se encontraba en la lista blanca</b>.', parse_mode="HTML")
 				continue
@@ -81,6 +82,7 @@ def command_controller(message):
 		if not users:
 			this_command_needs_users(chatId)
 		for userToRemove in users:
+			userToRemove = userToRemove.lower()
 			if not is_in_whitelist(userToRemove):
 				bot.send_message(chatId, f'El usuario @{userToRemove} <b>no se encontraba en la lista blanca</b>.', parse_mode="HTML")
 				continue
@@ -93,7 +95,7 @@ def command_controller(message):
 def text_controller(message):
 	chatId = message.chat.id
 	userId = message.from_user.id
-	username = message.from_user.username
+	username = message.from_user.username.lower()
 	wasBannedBefore = is_in_bannedlist(username)
 	if not is_admin(userId) and (wasBannedBefore or not is_in_whitelist(username)):
 		ban(username, userId)
@@ -123,7 +125,7 @@ def unban(user, chatId):
 	with open(FILE_BANNED, 'r', encoding="utf-8") as f:
 		lines = f.readlines()
 		for line in lines:
-			if not line.split(sep='|')[0] == user.strip().lower():
+			if not line.split(sep='|')[0].lower() == user.strip().lower():
 				usersBanned.append(line)
 			else:
 				userFound = True
@@ -182,7 +184,7 @@ def remove_from_whitelist(user):
 	with open(FILE_WHITELIST, 'r', encoding="utf-8") as f:
 		lines = f.readlines()
 		for line in lines:
-			if not line.strip().lower() == user:
+			if not line.strip().lower() == user.strip().lower():
 				usersWhiteList.append(line)
 	
 	# Escribir los usuarios en lista
@@ -193,7 +195,7 @@ def is_in_whitelist(user):
 	with open(FILE_WHITELIST, 'r', encoding="utf-8") as f:
 		lines = f.readlines()
 		for line in lines:
-			if line.strip().lower() == user:
+			if line.strip().lower() == user.strip().lower():
 				return True
 	return False
 
@@ -201,7 +203,7 @@ def is_in_bannedlist(user):
 	with open(FILE_BANNED, 'r', encoding="utf-8") as f:
 		lines = f.readlines()
 		for line in lines:
-			if line.split(sep='|')[0] == user.strip().lower():
+			if line.split(sep='|')[0].lower() == user.strip().lower():
 				return True
 	return False
 
