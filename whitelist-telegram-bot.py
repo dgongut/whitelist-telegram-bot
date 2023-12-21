@@ -28,12 +28,25 @@ def entry_control(event):
 	if not is_configured():
 		bot.send_message(chatId, f'<b><i>===ERROR===</i></b>\n\nSe necesita configurar la variable de entorno TELEGRAM_GROUP. Si este mensaje está apareciendo en el grupo que deseas gestionar añade <code>TELEGRAM_GROUP={chatId}</code> a las variables de entorno (toca para copiarlo).\n\nEl bot <b>no funcionará</b> mientras este parametro no esté configurado.', parse_mode="HTML")
 		return
+	
+	if DEBUG == "1":
+		bot.send_message(chatId, f'Nuevos miembros detectados: {len(event.new_chat_members)}', parse_mode="HTML")
 
 	for newMember in event.new_chat_members:
 		username = newMember.username.lower()
 		userId = newMember.id
 		wasBannedBefore = is_in_bannedlist(username)
-		if not is_admin(userId) and (wasBannedBefore or not is_in_whitelist(username)):
+		inWhiteList = is_in_whitelist(username)
+		if DEBUG == "1":
+			if wasBannedBefore:
+				bot.send_message(chatId, f'El usuario @{username} <b>ha tratado de unirse y ya se encontraba baneado</b>.', parse_mode="HTML")
+
+			if inWhiteList:
+				bot.send_message(chatId, f'El usuario @{username} <b>está en la lista blanca, pasa y ponte cómodo</b>.', parse_mode="HTML")
+			else:
+				bot.send_message(chatId, f'El usuario @{username} <b>no está en la lista blanca, prepárate...</b>.', parse_mode="HTML")
+
+		if not is_admin(userId) and (wasBannedBefore or not inWhiteList):
 			ban(username, userId)
 			if not wasBannedBefore:
 				bot.send_message(chatId, f'<b><i>===Intruso detectado===</i></b>\nEl usuario @{username} <b>ha sido fulminado</b>.', parse_mode="HTML")
@@ -102,7 +115,7 @@ def text_controller(message):
 		if not wasBannedBefore:
 			bot.send_message(chatId, f'<b><i>===Intruso detectado===</i></b>\nEl usuario @{username} <b>ha sido fulminado</b>.', parse_mode="HTML")
 		else:
-			bot.send_message(chatId, f'<b><i>===Intruso detectado===</i></b>\nEl usuario @{username} sigue tratando de unirse, no va a poder.', parse_mode="HTML")
+			bot.send_message(chatId, f'<b><i>===Intruso detectado===</i></b>\nEl usuario @{username} no debería estar aquí.', parse_mode="HTML")
 
 def this_command_needs_users(chatId):
 	bot.send_message(chatId, f'Para usar este comando es necesario especificar uno o varios usuarios separados por comas (sin espacios).', parse_mode="HTML")
@@ -114,7 +127,10 @@ def is_admin(userId):
 	return False
 
 def ban(user, userId):
-	bot.ban_chat_member(TELEGRAM_GROUP, userId)
+	result = bot.ban_chat_member(TELEGRAM_GROUP, userId)
+	if DEBUG == "1":
+		bot.send_message(TELEGRAM_GROUP, f'El usuario {userId} ha sido baneado: {result}.', parse_mode="HTML")
+
 	if not is_in_bannedlist(user):
 		with open(FILE_BANNED, "a+", encoding="utf-8") as f:
 			f.write(f"{user}|{userId}\n")
@@ -130,7 +146,10 @@ def unban(user, chatId):
 			else:
 				userFound = True
 				try:
-					bot.unban_chat_member(TELEGRAM_GROUP, line.split(sep='|')[1], only_if_banned=True)
+					userId = line.split(sep='|')[1]
+					result = bot.unban_chat_member(TELEGRAM_GROUP, userId, only_if_banned=True)
+					if DEBUG == "1":
+						bot.send_message(TELEGRAM_GROUP, f'El usuario {userId} ha sido baneado: {result}.', parse_mode="HTML")
 				except:
 					#En grupos pequeños esto no es necesario y lanza una excepcion
 					pass
