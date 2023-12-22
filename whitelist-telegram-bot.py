@@ -4,6 +4,8 @@ import telebot
 from telebot import util
 from config import *
 
+VERSION = "1.0.4"
+
 # Comprobación inicial de variables
 if "abc" == TELEGRAM_TOKEN:
 	print("Se necesita configurar el token del bot con la variable TELEGRAM_TOKEN")
@@ -35,7 +37,13 @@ def entry_control(event):
 		bot.send_message(chatId, f'<b><i>===ERROR===</i></b>\n\nSe necesita configurar la variable de entorno TELEGRAM_GROUP. Si este mensaje está apareciendo en el grupo que deseas gestionar añade <code>TELEGRAM_GROUP={chatId}</code> a las variables de entorno (toca para copiarlo).\n\nEl bot <b>no funcionará</b> mientras este parametro no esté configurado.', parse_mode="HTML")
 		return
 
-	if 'telebot.types.ChatMemberMember' in str(type(event.new_chat_member)): # La persona se acaba de unir
+	if 'telebot.types.ChatMemberMember' in str(type(event.new_chat_member)): # La persona se acaba de unir	
+		if event.from_user.username is None:
+			name = event.from_user.first_name
+			bot.send_message(chatId, f'<b><i>===Posible intruso detectado===</i></b>\n\nEl usuario @{telegram_name_with_link(chatId, name)} <b>ha tratado de unirse sin tener configurado un nombre de usuario. No es posible unirse sin tener configurado un nombre de usuario</b>.', parse_mode="HTML")
+			ban(name, userId)
+			return
+
 		username = event.from_user.username.lower()
 		userId = event.from_user.id
 
@@ -57,7 +65,7 @@ def entry_control(event):
 			else:
 				bot.send_message(chatId, f'<b><i>===Intruso detectado===</i></b>\nEl usuario @{username} sigue tratando de unirse, no va a poder.', parse_mode="HTML")
 
-@bot.message_handler(commands=["stats", "addwhitelist", "removewhitelist"])
+@bot.message_handler(commands=["stats", "addwhitelist", "removewhitelist", "version"])
 def command_controller(message):
 	chatId = message.chat.id
 	senderId = message.from_user.id
@@ -107,11 +115,19 @@ def command_controller(message):
 			bot.send_message(chatId, f'El usuario @{userToRemove} <b>ha sido <u>eliminado</u> de la lista blanca</b>.', parse_mode="HTML")
 	elif command.startswith('/stats'):
 		stats(chatId)
+	elif command.startswith('/version'):
+		bot.send_message(chatId, f'<i>Version: {VERSION}</i>', parse_mode="HTML")
 
 @bot.message_handler(content_types=["text"])
 def text_controller(message):
 	chatId = message.chat.id
 	userId = message.from_user.id
+	if message.from_user.username is None:
+		name = message.from_user.first_name
+		bot.send_message(chatId, f'<b><i>===Posible intruso detectado===</i></b>\n\nEl usuario @{telegram_name_with_link(chatId, name)} <b>ha hablado sin tener configurado un nombre de usuario. No es posible estar aquí sin tener configurado un nombre de usuario</b>.', parse_mode="HTML")
+		ban(name, userId)
+		return
+
 	username = message.from_user.username.lower()
 	wasBannedBefore = is_in_bannedlist(username)
 	if not is_admin(userId) and (wasBannedBefore or not is_in_whitelist(username)):
@@ -248,6 +264,9 @@ def get_whitelist():
 
 def is_configured():
 	return "abc" != TELEGRAM_GROUP
+
+def telegram_name_with_link(chatId, name):
+    return f'<a href="tg://user?id={chatId}">{name}</a>'
 
 if __name__ == '__main__':
 	bot.set_my_commands([ # Comandos a mostrar en el menú de Telegram
