@@ -1,6 +1,7 @@
 import re
 import os
 import telebot
+from telebot import util
 from config import *
 
 # Comprobación inicial de variables
@@ -22,19 +23,22 @@ if not os.path.exists(FILE_WHITELIST):
 # Instanciamos el bot
 bot = telebot.TeleBot(TELEGRAM_TOKEN)
 
-@bot.message_handler(content_types=["new_chat_members"])
+@bot.chat_member_handler()
 def entry_control(event):
 	chatId = event.chat.id
+	if DEBUG == "1":
+		bot.send_message(chatId, f'==DEBUG MODE==\nCambio de estado detectado en un usuario')
+		bot.send_message(chatId, f'old_chat_member type: {type(event.old_chat_member)}')
+		bot.send_message(chatId, f'new_chat_member type: {type(event.new_chat_member)}')
+
 	if not is_configured():
 		bot.send_message(chatId, f'<b><i>===ERROR===</i></b>\n\nSe necesita configurar la variable de entorno TELEGRAM_GROUP. Si este mensaje está apareciendo en el grupo que deseas gestionar añade <code>TELEGRAM_GROUP={chatId}</code> a las variables de entorno (toca para copiarlo).\n\nEl bot <b>no funcionará</b> mientras este parametro no esté configurado.', parse_mode="HTML")
 		return
-	
-	if DEBUG == "1":
-		bot.send_message(chatId, f'Nuevos miembros detectados: {len(event.new_chat_members)}', parse_mode="HTML")
 
-	for newMember in event.new_chat_members:
-		username = newMember.username.lower()
-		userId = newMember.id
+	if 'telebot.types.ChatMemberMember' in str(type(event.new_chat_member)): # La persona se acaba de unir
+		username = event.from_user.username.lower()
+		userId = event.from_user.id
+
 		wasBannedBefore = is_in_bannedlist(username)
 		inWhiteList = is_in_whitelist(username)
 		if DEBUG == "1":
@@ -78,7 +82,7 @@ def command_controller(message):
 			if user != "":
 				users.append(user.replace("@", ""))
 	
-	if command in ('/addwhitelist'):
+	if command.startswith('/addwhitelist'):
 		if not users:
 			this_command_needs_users(chatId)
 		for userToAdd in users:
@@ -91,7 +95,7 @@ def command_controller(message):
 				continue
 			add_to_whitelist(userToAdd)
 			bot.send_message(chatId, f'El usuario @{userToAdd} <b>ha sido <u>añadido</u> a la lista blanca</b>.', parse_mode="HTML")
-	if command in ('/removewhitelist'):
+	if command.startswith('/removewhitelist'):
 		if not users:
 			this_command_needs_users(chatId)
 		for userToRemove in users:
@@ -101,7 +105,7 @@ def command_controller(message):
 				continue
 			remove_from_whitelist(userToRemove)
 			bot.send_message(chatId, f'El usuario @{userToRemove} <b>ha sido <u>eliminado</u> de la lista blanca</b>.', parse_mode="HTML")
-	elif command in ('/stats'):
+	elif command.startswith('/stats'):
 		stats(chatId)
 
 @bot.message_handler(content_types=["text"])
@@ -149,7 +153,7 @@ def unban(user, chatId):
 					userId = line.split(sep='|')[1]
 					result = bot.unban_chat_member(TELEGRAM_GROUP, userId, only_if_banned=True)
 					if DEBUG == "1":
-						bot.send_message(TELEGRAM_GROUP, f'El usuario {userId} ha sido baneado: {result}.', parse_mode="HTML")
+						bot.send_message(TELEGRAM_GROUP, f'El usuario {userId} ha sido desbaneado: {result}.', parse_mode="HTML")
 				except:
 					#En grupos pequeños esto no es necesario y lanza una excepcion
 					pass
@@ -251,4 +255,4 @@ if __name__ == '__main__':
         telebot.types.BotCommand("/addwhitelist", "Añade uno o más (separados por comas) usuarios a la lista blanca. Desbanea si estaba baneado."),
         telebot.types.BotCommand("/removewhitelist", "Elimina uno o más (separados por comas) usuarios a la lista blanca")
         ])
-	bot.infinity_polling(timeout=60)
+	bot.infinity_polling(allowed_updates=util.update_types, timeout=60)
