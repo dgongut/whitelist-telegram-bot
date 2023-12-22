@@ -38,15 +38,14 @@ def entry_control(event):
 		return
 
 	if 'telebot.types.ChatMemberMember' in str(type(event.new_chat_member)): # La persona se acaba de unir	
-		if event.from_user.username is None:
+		userId = event.from_user.id
+		if not is_admin(userId) and event.from_user.username is None:
 			name = event.from_user.first_name
-			bot.send_message(chatId, f'<b><i>===Posible intruso detectado===</i></b>\n\nEl usuario @{telegram_name_with_link(chatId, name)} <b>ha tratado de unirse sin tener configurado un nombre de usuario. No es posible unirse sin tener configurado un nombre de usuario</b>.', parse_mode="HTML")
+			bot.send_message(chatId, f'<b><i>===Posible intruso detectado===</i></b>\n\nEl usuario @{telegram_name_with_link(userId, name)} <b>ha tratado de unirse sin tener configurado un nombre de usuario. No es posible unirse sin tener configurado un nombre de usuario</b>.', parse_mode="HTML")
 			ban(name, userId)
 			return
 
 		username = event.from_user.username.lower()
-		userId = event.from_user.id
-
 		wasBannedBefore = is_in_bannedlist(username)
 		inWhiteList = is_in_whitelist(username)
 		if DEBUG == "1":
@@ -122,9 +121,9 @@ def command_controller(message):
 def text_controller(message):
 	chatId = message.chat.id
 	userId = message.from_user.id
-	if message.from_user.username is None:
+	if not is_admin(userId) and message.from_user.username is None:
 		name = message.from_user.first_name
-		bot.send_message(chatId, f'<b><i>===Posible intruso detectado===</i></b>\n\nEl usuario @{telegram_name_with_link(chatId, name)} <b>ha hablado sin tener configurado un nombre de usuario. No es posible estar aquí sin tener configurado un nombre de usuario</b>.', parse_mode="HTML")
+		bot.send_message(chatId, f'<b><i>===Posible intruso detectado===</i></b>\n\nEl usuario @{telegram_name_with_link(userId, name)} <b>ha hablado sin tener configurado un nombre de usuario. No es posible estar aquí sin tener configurado un nombre de usuario</b>.', parse_mode="HTML")
 		ban(name, userId)
 		return
 
